@@ -1,0 +1,17 @@
+message Message {
+
+  message Peer {
+
+		// ID of a given peer.
+		optional string id = 1;
+
+		// multiaddrs for a given peer
+		repeated bytes addrs = 2;
+	}
+
+	// Used to specify the key associated with this message lookup
+	optional string key = 2;
+
+	// Used to return peers closer to a key in a query
+	repeated Peer closerPeers = 8;
+}
