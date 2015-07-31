@@ -3,22 +3,36 @@ var KBucket = require('k-bucket')
 
 exports = module.exports = KadRouter
 
-function KadRouter (peerSelf, swarm) {
+function KadRouter (peerSelf, swarm, kBucketSize) {
   var self = this
 
   if (!(self instanceof KadRouter)) {
     throw new Error('KadRouter must be called with new')
   }
 
-  var kb = new KBucket({
+  self.kBucketSize = kBucketSize || 20 // same as go-ipfs
+
+  self.kb = new KBucket({
     localNodeId: peerSelf.id.toBytes(),
-    numberOfNodesPerKBucket: 20 // same as go-ipfs
+    numberOfNodesPerKBucket: self.kBucketSize
   })
 
-  kb.on('ping', function (oldContacts, newContact) {
-    // TODO(daviddias)
-    // 0. Update peer record with lastSeen
-    // 1. sort oldContacts by last seen, swap last seen with new (kBucket.add)
+  self.kb.on('ping', function (oldContacts, newContact) {
+    var sorted = oldContacts.sort(function (a, b) {
+      return a.peer.lastSeen - b.peer.lastSeen
+    })
+
+    console.log('sorted len: ', sorted.length)
+
+    // add all less the last seen contact
+    for (var i = 0; i < sorted.length - 1; i++) {
+      self.kb.add(sorted[i])
+    }
+
+    self.kb.remove(sorted[sorted.length - 1])
+
+    // add the new one
+    self.kb.add(newContact)
   })
 
   // register /ipfs/dht/1.0.0 protocol handler
@@ -36,7 +50,7 @@ function KadRouter (peerSelf, swarm) {
   }
 
   self.addPeer = function (peer) {
-    kb.add({
+    self.kb.add({
       id: peer.id.toBytes(),
       peer: peer
     })

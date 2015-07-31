@@ -3,11 +3,8 @@
   "version": "0.0.0",
   "description": "Node.js Implementation of the Kademlia router",
   "main": "src/index.js",
-  "directories": {
-    "test": "tests"
-  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./node_modules/.bin/lab --debug tests/*-test.js"
   },
   "repository": {
     "type": "git",
@@ -26,5 +23,14 @@
     "ipfs-logger": "^0.1.0",
     "js-priority-queue": "^0.1.2",
     "k-bucket": "^0.5.0"
+  },
+  "devDependencies": {
+    "code": "^1.5.0",
+    "ipfs-peer": "^0.3.0",
+    "ipfs-peer-id": "^0.3.0",
+    "ipfs-swarm": "^0.3.0",
+    "lab": "^5.14.0",
+    "multiaddr": "^1.0.0",
+    "standard": "^4.5.4"
   }
 }
