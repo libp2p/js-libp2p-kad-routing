@@ -20,9 +20,11 @@
   },
   "homepage": "https://github.com/diasdavid/node-ipfs-kad-router",
   "dependencies": {
+    "async": "^1.4.0",
     "ipfs-logger": "^0.1.0",
     "js-priority-queue": "^0.1.2",
-    "k-bucket": "^0.5.0"
+    "k-bucket": "^0.5.0",
+    "protocol-buffers-stream": "^1.2.0"
   },
   "devDependencies": {
     "code": "^1.5.0",
