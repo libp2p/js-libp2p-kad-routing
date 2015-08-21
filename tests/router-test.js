@@ -69,7 +69,7 @@ experiment('QUERY', function () {
     })
   })
 
-  test('query depth of two', { timeout: false, only: true }, function (done) {
+  test('query depth of two', { timeout: false }, function (done) {
     var peerZero = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8090')])
     var swarmZero = new Swarm()
     swarmZero.listen(8090)
@@ -105,6 +105,10 @@ experiment('QUERY', function () {
     krZero.addPeer(peerThree)
     krOne.addPeer(peerFour)
     krOne.addPeer(peerFive)
+    krTwo.addPeer(peerZero)
+    krThree.addPeer(peerZero)
+    krFour.addPeer(peerZero)
+    krFive.addPeer(peerZero)
 
     krZero.findPeers(Id.create().toBytes(), function (err, peerList) {
       expect(err).to.equal(null)

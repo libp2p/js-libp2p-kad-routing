@@ -61,8 +61,6 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
         }
       }) : []
 
-      console.log('do I have closer peers', closerPeers)
-
       ps.query({
         key: msg.key,
         closerPeers: closerPeers
