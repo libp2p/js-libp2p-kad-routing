@@ -69,7 +69,7 @@ experiment('QUERY', function () {
     })
   })
 
-  test('query depth of two', { timeout: false }, function (done) {
+  test('query depth of two', function (done) {
     var peerZero = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8090')])
     var swarmZero = new Swarm()
     swarmZero.listen(8090)
@@ -116,4 +116,52 @@ experiment('QUERY', function () {
       done()
     })
   })
+
+  test('query depth of three', function (done) {
+    var peerZero = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8090')])
+    var swarmZero = new Swarm()
+    swarmZero.listen(8050)
+    var krZero = new KadRouter(peerZero, swarmZero)
+
+    var peerOne = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8091')])
+    var swarmOne = new Swarm()
+    swarmOne.listen(8051)
+    var krOne = new KadRouter(peerOne, swarmOne)
+
+    var peerTwo = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8092')])
+    var swarmTwo = new Swarm()
+    swarmTwo.listen(8052)
+    var krTwo = new KadRouter(peerTwo, swarmTwo)
+
+    var peerThree = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8093')])
+    var swarmThree = new Swarm()
+    swarmThree.listen(8053)
+    var krThree = new KadRouter(peerThree, swarmThree)
+
+    var peerFour = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8094')])
+    var swarmFour = new Swarm()
+    swarmFour.listen(8054)
+    var krFour = new KadRouter(peerFour, swarmFour)
+
+    var peerFive = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8095')])
+    var swarmFive = new Swarm()
+    swarmFive.listen(8055)
+    var krFive = new KadRouter(peerFive, swarmFive)
+
+    krZero.addPeer(peerOne)
+    krZero.addPeer(peerTwo)
+    krOne.addPeer(peerThree)
+    krOne.addPeer(peerFour)
+    krThree.addPeer(peerFive)
+    krTwo.addPeer(peerOne)
+    krFour.addPeer(peerOne)
+    krFive.addPeer(peerTwo)
+
+    krZero.findPeers(Id.create().toBytes(), function (err, peerList) {
+      expect(err).to.equal(null)
+      expect(Object.keys(peerList).length).to.be.greaterThan(0)
+      done()
+    })
+  })
+
 })
