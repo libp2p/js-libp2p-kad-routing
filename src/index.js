@@ -54,12 +54,14 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
         n: self.ncp
       })
 
-      closerPeers = closerPeers.map(function (cp) {
+      closerPeers = closerPeers.length > 0 ? closerPeers.map(function (cp) {
         return {
           id: cp.peer.id.toBytes(),
           addrs: cp.peer.multiaddrs.map(function (mh) { return mh.buffer })
         }
-      })
+      }) : []
+
+      console.log('do I have closer peers', closerPeers)
 
       ps.query({
         key: msg.key,
@@ -117,6 +119,11 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
         var ps = self.createProtoStream()
 
         ps.on('query', function (msg) {
+          // Didn't get any new peers to query, meaning our contact has its kbuckets empty
+          if (msg.closerPeers.length === 0) {
+            return cb()
+          }
+
           msg.closerPeers.forEach(function (closerPeer) {
             var peerId = Id.createFromBytes(closerPeer.id)
             var addrs = closerPeer.addrs.map(function (addr) {
@@ -127,18 +134,19 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
             // make sure we haven't pinged this one already
             if (peerList[peerId.toB58String()]) {
-              return cb()
+              return
             }
 
             // make sure we weren't told to query ourselfs
             if (peerId.toB58String() === peerSelf.id.toB58String()) {
-              return cb()
+              return
             }
 
             // add this peer to the query list
             q.push(cPeer)
-            cb()
           })
+
+          cb()
         })
 
         ps.query({
