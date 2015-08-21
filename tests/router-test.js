@@ -40,8 +40,8 @@ experiment('QUERY', function () {
 
     var kr = new KadRouter(peerSelf, swarmSelf)
 
-    kr.findPeers(Id.create().toBytes(), function (err, peerList) {
-      expect(peerList).to.equal(undefined)
+    kr.findPeers(Id.create().toBytes(), function (err, peerQueue) {
+      expect(peerQueue).to.equal(undefined)
       expect(err).to.be.instanceof(Error)
       done()
     })
@@ -62,9 +62,9 @@ experiment('QUERY', function () {
     krOne.addPeer(peerTwo)
     krTwo.addPeer(peerOne)
 
-    krOne.findPeers(Id.create().toBytes(), function (err, peerList) {
+    krOne.findPeers(Id.create().toBytes(), function (err, peerQueue) {
       expect(err).to.equal(null)
-      expect(Object.keys(peerList)[0]).to.equal(peerTwo.id.toB58String())
+      expect(peerQueue.peek().id.toB58String()).to.equal(peerTwo.id.toB58String())
       done()
     })
   })
@@ -110,9 +110,9 @@ experiment('QUERY', function () {
     krFour.addPeer(peerZero)
     krFive.addPeer(peerZero)
 
-    krZero.findPeers(Id.create().toBytes(), function (err, peerList) {
+    krZero.findPeers(Id.create().toBytes(), function (err, peerQueue) {
       expect(err).to.equal(null)
-      expect(Object.keys(peerList).length).to.be.greaterThan(0)
+      expect(peerQueue.length).to.be.greaterThan(0)
       done()
     })
   })
@@ -157,9 +157,9 @@ experiment('QUERY', function () {
     krFour.addPeer(peerOne)
     krFive.addPeer(peerTwo)
 
-    krZero.findPeers(Id.create().toBytes(), function (err, peerList) {
+    krZero.findPeers(Id.create().toBytes(), function (err, peerQueue) {
       expect(err).to.equal(null)
-      expect(Object.keys(peerList).length).to.be.greaterThan(0)
+      expect(peerQueue.length).to.be.greaterThan(0)
       done()
     })
   })

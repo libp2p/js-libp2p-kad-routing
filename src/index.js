@@ -6,6 +6,8 @@ var fs = require('fs')
 var Peer = require('ipfs-peer')
 var Id = require('ipfs-peer-id')
 var multiaddr = require('multiaddr')
+var PriorityQueue = require('js-priority-queue')
+var xor = require('buffer-xor')
 
 exports = module.exports = KadRouter
 
@@ -142,6 +144,8 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
             // add this peer to the query list
             q.push(cPeer)
+
+            // TODO Consider this new found peer to our kbucket (attempt connection first)
           })
 
           cb()
@@ -161,7 +165,18 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
     // it only happens after all callbacks were called, (which is different from the
     // queue having 0 items to process)
     q.drain = function done () {
-      callback(null, peerList)
+      var queue = new PriorityQueue({
+        comparator: function (a, b) {
+          return xor(a.id.toBytes(), key).compare(xor(b.id.toBytes(), key))
+        }
+      })
+
+      // add all the values on the peerList
+      Object.keys(peerList).forEach(function (peerB58String) {
+        queue.queue(peerList[peerB58String])
+      })
+
+      callback(null, queue)
     }
   }
 
