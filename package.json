@@ -1,6 +1,6 @@
 {
   "name": "ipfs-kad-router",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node.js Implementation of the Kademlia router",
   "main": "src/index.js",
   "scripts": {
@@ -19,7 +19,9 @@
   "bugs": {
     "url": "https://github.com/diasdavid/node-ipfs-kad-router/issues"
   },
-  "engines" : { "node" : "^4.0.0" },
+  "engines": {
+    "node": "^4.0.0"
+  },
   "homepage": "https://github.com/diasdavid/node-ipfs-kad-router",
   "dependencies": {
     "async": "^1.4.0",
