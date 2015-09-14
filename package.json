@@ -19,6 +19,7 @@
   "bugs": {
     "url": "https://github.com/diasdavid/node-ipfs-kad-router/issues"
   },
+  "engines" : { "node" : "^4.0.0" },
   "homepage": "https://github.com/diasdavid/node-ipfs-kad-router",
   "dependencies": {
     "async": "^1.4.0",
