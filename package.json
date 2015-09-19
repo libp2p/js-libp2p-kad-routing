@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "test": "./node_modules/.bin/lab tests/*-test.js",
-    "compliance": "node tests/compliance-test.js"
+    "compliance": "node tests/compliance.js"
   },
   "pre-commit": [],
   "repository": {
