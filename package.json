@@ -1,6 +1,6 @@
 {
   "name": "ipfs-kad-router",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Node.js Implementation of the Kademlia router",
   "main": "src/index.js",
   "scripts": {
