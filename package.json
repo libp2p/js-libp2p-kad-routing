@@ -30,8 +30,8 @@
   },
   "devDependencies": {
     "code": "^1.5.0",
-    "ipfs-peer": "^0.3.0",
-    "ipfs-peer-id": "^0.3.0",
+    "peer-info": "^0.3.0",
+    "peer-id": "^0.3.0",
     "ipfs-swarm": "^0.3.0",
     "lab": "^5.14.0",
     "multiaddr": "^1.0.0",
