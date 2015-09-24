@@ -9,159 +9,245 @@ var expect = Code.expect
 var multiaddr = require('multiaddr')
 var Id = require('peer-id')
 var Peer = require('peer-info')
-var Swarm = require('ipfs-swarm')
+var Swarm = require('libp2p-swarm')
+var tcp = require('libp2p-tcp')
+var Spdy = require('libp2p-spdy')
 
 var KadRouter = require('./../src')
 
 experiment('PING', function () {
   test('Add 10 peers to a k=2 kBucket', function (done) {
-    var peerSelf = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/4001')])
-    var swarmSelf = new Swarm()
+    var mh = multiaddr('/ip4/127.0.0.1/tcp/8010')
+    var p = new Peer(Id.create(), [])
+    var sw = new Swarm(p)
+    sw.addTransport('tcp', tcp, { multiaddr: mh }, {}, {port: 8010}, ready)
 
-    var kr = new KadRouter(peerSelf, swarmSelf, 2)
+    function ready () {
+      sw.addStreamMuxer('spdy', Spdy, {})
+      sw.enableIdentify()
 
-    kr.kb.once('ping', function (oldContacts, newContact) {
-      done()
-    })
+      var kr = new KadRouter(p, sw, 2)
 
-    for (var i = 0; i < 10; i++) {
-      var p = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/4001')])
-      p.lastSeen = new Date()
-      kr.addPeer(p)
+      kr.kb.once('ping', function (oldContacts, newContact) {
+        sw.close()
+        done()
+      })
+
+      for (var i = 0; i < 10; i++) {
+        var po = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/4001')])
+        po.lastSeen = new Date()
+        kr.addPeer(po)
+      }
     }
   })
-
 })
 
 experiment('QUERY', function () {
   test('Should return error when kbucket is empty', function (done) {
-    var peerSelf = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/4001')])
-    var swarmSelf = new Swarm()
+    var mh = multiaddr('/ip4/127.0.0.1/tcp/8010')
+    var p = new Peer(Id.create(), [])
+    var sw = new Swarm(p)
+    sw.addTransport('tcp', tcp, { multiaddr: mh }, {}, {port: 8005}, ready)
 
-    var kr = new KadRouter(peerSelf, swarmSelf)
+    function ready () {
+      sw.addStreamMuxer('spdy', Spdy, {})
+      sw.enableIdentify()
 
-    kr.findPeers(Id.create().toBytes(), function (err, peerQueue) {
-      expect(peerQueue).to.equal(undefined)
-      expect(err).to.be.instanceof(Error)
-      done()
-    })
+      var kr = new KadRouter(p, sw, 2)
+
+      kr.findPeers(Id.create().toBytes(), function (err, peerQueue) {
+        expect(peerQueue).to.equal(undefined)
+        expect(err).to.be.instanceof(Error)
+        done()
+      })
+    }
   })
 
   test('query depth of one', function (done) {
-    var peerOne = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8081')])
-    var swarmOne = new Swarm()
-    swarmOne.listen(8081)
+    var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8081')
+    var p1 = new Peer(Id.create(), [])
+    var sw1 = new Swarm(p1)
+    sw1.addTransport('tcp', tcp, { multiaddr: mh1 }, {}, {port: 8081}, ready)
 
-    var peerTwo = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8082')])
-    var swarmTwo = new Swarm()
-    swarmTwo.listen(8082)
+    var mh2 = multiaddr('/ip4/127.0.0.1/tcp/8082')
+    var p2 = new Peer(Id.create(), [])
+    var sw2 = new Swarm(p2)
+    sw2.addTransport('tcp', tcp, { multiaddr: mh2 }, {}, {port: 8082}, ready)
 
-    var krOne = new KadRouter(peerOne, swarmOne)
-    var krTwo = new KadRouter(peerTwo, swarmTwo)
+    var counter = 0
 
-    krOne.addPeer(peerTwo)
-    krTwo.addPeer(peerOne)
+    function ready () {
+      counter++
+      if (counter < 2) {
+        return
+      }
+      sw1.addStreamMuxer('spdy', Spdy, {})
+      sw1.enableIdentify()
+      sw2.addStreamMuxer('spdy', Spdy, {})
+      sw2.enableIdentify()
 
-    krOne.findPeers(Id.create().toBytes(), function (err, peerQueue) {
-      expect(err).to.equal(null)
-      expect(peerQueue.peek().id.toB58String()).to.equal(peerTwo.id.toB58String())
-      done()
-    })
+      var krOne = new KadRouter(p1, sw1)
+      var krTwo = new KadRouter(p2, sw2)
+
+      krOne.addPeer(p2)
+      krTwo.addPeer(p1)
+
+      krOne.findPeers(Id.create().toBytes(), function (err, peerQueue) {
+        expect(err).to.equal(null)
+        expect(peerQueue.peek().id.toB58String()).to.equal(p2.id.toB58String())
+        done()
+      })
+    }
   })
 
   test('query depth of two', function (done) {
-    var peerZero = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8090')])
-    var swarmZero = new Swarm()
-    swarmZero.listen(8090)
-    var krZero = new KadRouter(peerZero, swarmZero)
+    var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8091')
+    var p1 = new Peer(Id.create(), [])
+    var sw1 = new Swarm(p1)
+    sw1.addTransport('tcp', tcp, { multiaddr: mh1 }, {}, {port: 8091}, ready)
 
-    var peerOne = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8091')])
-    var swarmOne = new Swarm()
-    swarmOne.listen(8091)
-    var krOne = new KadRouter(peerOne, swarmOne)
+    var mh2 = multiaddr('/ip4/127.0.0.1/tcp/8092')
+    var p2 = new Peer(Id.create(), [])
+    var sw2 = new Swarm(p2)
+    sw2.addTransport('tcp', tcp, { multiaddr: mh2 }, {}, {port: 8092}, ready)
 
-    var peerTwo = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8092')])
-    var swarmTwo = new Swarm()
-    swarmTwo.listen(8092)
-    var krTwo = new KadRouter(peerTwo, swarmTwo)
+    var mh3 = multiaddr('/ip4/127.0.0.1/tcp/8093')
+    var p3 = new Peer(Id.create(), [])
+    var sw3 = new Swarm(p3)
+    sw3.addTransport('tcp', tcp, { multiaddr: mh3 }, {}, {port: 8093}, ready)
 
-    var peerThree = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8093')])
-    var swarmThree = new Swarm()
-    swarmThree.listen(8093)
-    var krThree = new KadRouter(peerThree, swarmThree)
+    var mh4 = multiaddr('/ip4/127.0.0.1/tcp/8094')
+    var p4 = new Peer(Id.create(), [])
+    var sw4 = new Swarm(p4)
+    sw4.addTransport('tcp', tcp, { multiaddr: mh4 }, {}, {port: 8094}, ready)
 
-    var peerFour = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8094')])
-    var swarmFour = new Swarm()
-    swarmFour.listen(8094)
-    var krFour = new KadRouter(peerFour, swarmFour)
+    var mh5 = multiaddr('/ip4/127.0.0.1/tcp/8095')
+    var p5 = new Peer(Id.create(), [])
+    var sw5 = new Swarm(p5)
+    sw5.addTransport('tcp', tcp, { multiaddr: mh5 }, {}, {port: 8095}, ready)
 
-    var peerFive = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8095')])
-    var swarmFive = new Swarm()
-    swarmFive.listen(8095)
-    var krFive = new KadRouter(peerFive, swarmFive)
+    var mh6 = multiaddr('/ip4/127.0.0.1/tcp/8096')
+    var p6 = new Peer(Id.create(), [])
+    var sw6 = new Swarm(p6)
+    sw6.addTransport('tcp', tcp, { multiaddr: mh6 }, {}, {port: 8096}, ready)
 
-    krZero.addPeer(peerOne)
-    krZero.addPeer(peerTwo)
-    krZero.addPeer(peerThree)
-    krOne.addPeer(peerFour)
-    krOne.addPeer(peerFive)
-    krTwo.addPeer(peerZero)
-    krThree.addPeer(peerZero)
-    krFour.addPeer(peerZero)
-    krFive.addPeer(peerZero)
+    var counter = 0
 
-    krZero.findPeers(Id.create().toBytes(), function (err, peerQueue) {
-      expect(err).to.equal(null)
-      expect(peerQueue.length).to.be.greaterThan(0)
-      done()
-    })
+    function ready () {
+      counter++
+      if (counter < 6) {
+        return
+      }
+      sw1.addStreamMuxer('spdy', Spdy, {})
+      sw1.enableIdentify()
+      sw2.addStreamMuxer('spdy', Spdy, {})
+      sw2.enableIdentify()
+      sw3.addStreamMuxer('spdy', Spdy, {})
+      sw3.enableIdentify()
+      sw4.addStreamMuxer('spdy', Spdy, {})
+      sw4.enableIdentify()
+      sw5.addStreamMuxer('spdy', Spdy, {})
+      sw5.enableIdentify()
+      sw6.addStreamMuxer('spdy', Spdy, {})
+      sw6.enableIdentify()
+
+      var krOne = new KadRouter(p1, sw1)
+      var krTwo = new KadRouter(p2, sw2)
+      var krThree = new KadRouter(p3, sw3)
+      var krFour = new KadRouter(p4, sw4)
+      var krFive = new KadRouter(p5, sw5)
+      var krSix = new KadRouter(p6, sw6)
+
+      krOne.addPeer(p2)
+      krOne.addPeer(p3)
+      krOne.addPeer(p4)
+      krTwo.addPeer(p5)
+      krTwo.addPeer(p6)
+      krThree.addPeer(p1)
+      krFour.addPeer(p1)
+      krFive.addPeer(p1)
+      krSix.addPeer(p1)
+
+      krOne.findPeers(Id.create().toBytes(), function (err, peerQueue) {
+        expect(err).to.equal(null)
+        expect(peerQueue.length).to.be.greaterThan(0)
+        done()
+      })
+    }
   })
 
   test('query depth of three', function (done) {
-    var peerZero = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8090')])
-    var swarmZero = new Swarm()
-    swarmZero.listen(8050)
-    var krZero = new KadRouter(peerZero, swarmZero)
+    var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8121')
+    var p1 = new Peer(Id.create(), [])
+    var sw1 = new Swarm(p1)
+    sw1.addTransport('tcp', tcp, { multiaddr: mh1 }, {}, {port: 8121}, ready)
 
-    var peerOne = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8091')])
-    var swarmOne = new Swarm()
-    swarmOne.listen(8051)
-    var krOne = new KadRouter(peerOne, swarmOne)
+    var mh2 = multiaddr('/ip4/127.0.0.1/tcp/8122')
+    var p2 = new Peer(Id.create(), [])
+    var sw2 = new Swarm(p2)
+    sw2.addTransport('tcp', tcp, { multiaddr: mh2 }, {}, {port: 8122}, ready)
 
-    var peerTwo = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8092')])
-    var swarmTwo = new Swarm()
-    swarmTwo.listen(8052)
-    var krTwo = new KadRouter(peerTwo, swarmTwo)
+    var mh3 = multiaddr('/ip4/127.0.0.1/tcp/8123')
+    var p3 = new Peer(Id.create(), [])
+    var sw3 = new Swarm(p3)
+    sw3.addTransport('tcp', tcp, { multiaddr: mh3 }, {}, {port: 8123}, ready)
 
-    var peerThree = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8093')])
-    var swarmThree = new Swarm()
-    swarmThree.listen(8053)
-    var krThree = new KadRouter(peerThree, swarmThree)
+    var mh4 = multiaddr('/ip4/127.0.0.1/tcp/8124')
+    var p4 = new Peer(Id.create(), [])
+    var sw4 = new Swarm(p4)
+    sw4.addTransport('tcp', tcp, { multiaddr: mh4 }, {}, {port: 8124}, ready)
 
-    var peerFour = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8094')])
-    var swarmFour = new Swarm()
-    swarmFour.listen(8054)
-    var krFour = new KadRouter(peerFour, swarmFour)
+    var mh5 = multiaddr('/ip4/127.0.0.1/tcp/8125')
+    var p5 = new Peer(Id.create(), [])
+    var sw5 = new Swarm(p5)
+    sw5.addTransport('tcp', tcp, { multiaddr: mh5 }, {}, {port: 8125}, ready)
 
-    var peerFive = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8095')])
-    var swarmFive = new Swarm()
-    swarmFive.listen(8055)
-    var krFive = new KadRouter(peerFive, swarmFive)
+    var mh6 = multiaddr('/ip4/127.0.0.1/tcp/8126')
+    var p6 = new Peer(Id.create(), [])
+    var sw6 = new Swarm(p6)
+    sw6.addTransport('tcp', tcp, { multiaddr: mh6 }, {}, {port: 8126}, ready)
 
-    krZero.addPeer(peerOne)
-    krZero.addPeer(peerTwo)
-    krOne.addPeer(peerThree)
-    krOne.addPeer(peerFour)
-    krThree.addPeer(peerFive)
-    krTwo.addPeer(peerOne)
-    krFour.addPeer(peerOne)
-    krFive.addPeer(peerTwo)
+    var counter = 0
 
-    krZero.findPeers(Id.create().toBytes(), function (err, peerQueue) {
-      expect(err).to.equal(null)
-      expect(peerQueue.length).to.be.greaterThan(0)
-      done()
-    })
+    function ready () {
+      counter++
+      if (counter < 6) {
+        return
+      }
+      sw1.addStreamMuxer('spdy', Spdy, {})
+      sw1.enableIdentify()
+      sw2.addStreamMuxer('spdy', Spdy, {})
+      sw2.enableIdentify()
+      sw3.addStreamMuxer('spdy', Spdy, {})
+      sw3.enableIdentify()
+      sw4.addStreamMuxer('spdy', Spdy, {})
+      sw4.enableIdentify()
+      sw5.addStreamMuxer('spdy', Spdy, {})
+      sw5.enableIdentify()
+      sw6.addStreamMuxer('spdy', Spdy, {})
+      sw6.enableIdentify()
+
+      var krOne = new KadRouter(p1, sw1)
+      var krTwo = new KadRouter(p2, sw2)
+      var krThree = new KadRouter(p3, sw3)
+      var krFour = new KadRouter(p4, sw4)
+      var krFive = new KadRouter(p5, sw5)
+      var krSix = new KadRouter(p6, sw6)
+
+      krOne.addPeer(p2)
+      krOne.addPeer(p2)
+      krTwo.addPeer(p3)
+      krTwo.addPeer(p4)
+      krFour.addPeer(p6)
+      krThree.addPeer(p2)
+      krFive.addPeer(p2)
+      krSix.addPeer(p3)
+
+      krOne.findPeers(Id.create().toBytes(), function (err, peerQueue) {
+        expect(err).to.equal(null)
+        expect(peerQueue.length).to.be.greaterThan(0)
+        done()
+      })
+    }
   })
-
 })

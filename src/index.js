@@ -47,7 +47,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
   // register /ipfs/dht/1.0.0 protocol handler
 
-  swarmSelf.registerHandler('/ipfs/dht/1.0.0', function (stream) {
+  swarmSelf.handleProtocol('/ipfs/dht/1.0.0', function (stream) {
     var ps = self.createProtoStream()
 
     ps.on('query', function (msg) {
@@ -105,7 +105,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
       // 3. if we already queried the peer, skip
       // 4. if not, add to the peerList and the queue (q.push(peer))
 
-      swarmSelf.openStream(peerToQuery, '/ipfs/dht/1.0.0', function (err, stream) {
+      swarmSelf.dial(peerToQuery, {}, '/ipfs/dht/1.0.0', function (err, stream) {
         if (err) {
           log.error('Could not open a stream to:', peerToQuery.id.toB58String())
           return cb()

@@ -1,7 +1,7 @@
 {
-  "name": "ipfs-kad-router",
+  "name": "libp2p-kad-routing",
   "version": "0.1.5",
-  "description": "Node.js Implementation of the Kademlia router",
+  "description": "Node.js Implementation of the Kademlia router for libp2p",
   "main": "src/index.js",
   "scripts": {
     "test": "./node_modules/.bin/lab tests/*-test.js",
@@ -10,7 +10,7 @@
   "pre-commit": [],
   "repository": {
     "type": "git",
-    "url": "https://github.com/diasdavid/node-ipfs-kad-router.git"
+    "url": "https://github.com/diasdavid/node-libp2p-kad-routing.git"
   },
   "keywords": [
     "IPFS"
@@ -18,12 +18,12 @@
   "author": "David Dias <daviddias@ipfs.io>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/diasdavid/node-ipfs-kad-router/issues"
+    "url": "https://github.com/diasdavid/node-libp2p-kad-routing/issues"
   },
   "engines": {
     "node": "^4.0.0"
   },
-  "homepage": "https://github.com/diasdavid/node-ipfs-kad-router",
+  "homepage": "https://github.com/diasdavid/node-libp2p-kad-routing",
   "dependencies": {
     "async": "^1.4.0",
     "buffer-xor": "^1.0.2",
@@ -35,8 +35,10 @@
   "devDependencies": {
     "abstract-peer-routing": "^0.1.0",
     "code": "^1.5.0",
-    "ipfs-swarm": "^0.3.0",
     "lab": "^5.14.0",
+    "libp2p-spdy": "^0.1.0",
+    "libp2p-swarm": "^0.5.0",
+    "libp2p-tcp": "^0.1.1",
     "multiaddr": "^1.0.0",
     "peer-id": "^0.3.0",
     "peer-info": "^0.3.0",
