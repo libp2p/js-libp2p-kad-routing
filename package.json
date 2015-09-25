@@ -33,7 +33,7 @@
     "protocol-buffers-stream": "^1.2.0"
   },
   "devDependencies": {
-    "abstract-peer-routing": "^0.1.0",
+    "abstract-peer-routing": "^0.1.1",
     "code": "^1.5.0",
     "lab": "^5.14.0",
     "libp2p-spdy": "^0.1.0",
