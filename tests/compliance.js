@@ -89,12 +89,12 @@ var common = {
     }
   },
   teardown: function () {
-    sw1.close()
-    sw2.close()
-    sw3.close()
-    sw4.close()
-    sw5.close()
-    sw6.close()
+    sw1.closeListener('tcp', function () {})
+    sw2.closeListener('tcp', function () {})
+    sw3.closeListener('tcp', function () {})
+    sw4.closeListener('tcp', function () {})
+    sw5.closeListener('tcp', function () {})
+    sw6.closeListener('tcp', function () {})
   }
 }
 
