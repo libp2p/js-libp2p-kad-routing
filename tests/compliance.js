@@ -3,7 +3,8 @@ var tests = require('abstract-peer-routing/tests')
 var multiaddr = require('multiaddr')
 var Id = require('peer-id')
 var Peer = require('peer-info')
-var Swarm = require('ipfs-swarm')
+var Swarm = require('libp2p-swarm')
+var tcp = require('libp2p-tcp')
 
 var KadRouter = require('./../src')
 
@@ -28,36 +29,44 @@ var krThree
 var krFour
 var krFive
 
+var mh
+
 var common = {
   setup: function (t, cb) {
-    peerZero = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8090')])
-    swarmZero = new Swarm()
-    swarmZero.listen(8090)
+    mh = multiaddr('/ip4/127.0.0.1/tcp/8090')
+    peerZero = new Peer(Id.create(), [mh])
+    swarmZero = new Swarm(peerZero)
+    swarmZero.addTransport('tcp', tcp, {}, {}, {port: 8090})
     krZero = new KadRouter(peerZero, swarmZero)
 
-    peerOne = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8091')])
-    swarmOne = new Swarm()
-    swarmOne.listen(8091)
+    mh = multiaddr('/ip4/127.0.0.1/tcp/8091')
+    peerOne = new Peer(Id.create(), [mh])
+    swarmOne = new Swarm(peerOne)
+    swarmOne.addTransport('tcp', tcp, {}, {}, {port: 8091})
     krOne = new KadRouter(peerOne, swarmOne)
 
-    peerTwo = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8092')])
-    swarmTwo = new Swarm()
-    swarmTwo.listen(8092)
+    mh = multiaddr('/ip4/127.0.0.1/tcp/8092')
+    peerTwo = new Peer(Id.create(), [mh])
+    swarmTwo = new Swarm(peerTwo)
+    swarmTwo.addTransport('tcp', tcp, {}, {}, {port: 8092})
     krTwo = new KadRouter(peerTwo, swarmTwo)
 
-    peerThree = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8093')])
-    swarmThree = new Swarm()
-    swarmThree.listen(8093)
+    mh = multiaddr('/ip4/127.0.0.1/tcp/8093')
+    peerThree = new Peer(Id.create(), [mh])
+    swarmThree = new Swarm(peerThree)
+    swarmThree.addTransport('tcp', tcp, {}, {}, {port: 8093})
     krThree = new KadRouter(peerThree, swarmThree)
 
-    peerFour = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8094')])
-    swarmFour = new Swarm()
-    swarmFour.listen(8094)
+    mh = multiaddr('/ip4/127.0.0.1/tcp/8094')
+    peerFour = new Peer(Id.create(), [mh])
+    swarmFour = new Swarm(peerFour)
+    swarmFour.addTransport('tcp', tcp, {}, {}, {port: 8094})
     krFour = new KadRouter(peerFour, swarmFour)
 
-    peerFive = new Peer(Id.create(), [multiaddr('/ip4/127.0.0.1/tcp/8095')])
-    swarmFive = new Swarm()
-    swarmFive.listen(8095)
+    mh = multiaddr('/ip4/127.0.0.1/tcp/8095')
+    peerFive = new Peer(Id.create(), [mh])
+    swarmFive = new Swarm(peerFive)
+    swarmFive.addTransport('tcp', tcp, {}, {}, {port: 8095})
     krFive = new KadRouter(peerFive, swarmFive)
 
     krZero.addPeer(peerOne)
@@ -72,15 +81,13 @@ var common = {
 
     cb(null, krZero)
   },
-  teardown: function (t, cb) {
-    swarmZero.closeListener()
-    swarmOne.closeListener()
-    swarmTwo.closeListener()
-    swarmThree.closeListener()
-    swarmFour.closeListener()
-    swarmFive.closeListener()
-
-    // cb()
+  teardown: function () {
+    swarmZero.closeListener('tcp')
+    swarmOne.closeListener('tcp')
+    swarmTwo.closeListener('tcp')
+    swarmThree.closeListener('tcp')
+    swarmFour.closeListener('tcp')
+    swarmFive.closeListener('tcp')
   }
 }
 
