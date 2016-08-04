@@ -25,25 +25,25 @@
   },
   "homepage": "https://github.com/diasdavid/node-libp2p-kad-routing",
   "dependencies": {
-    "async": "^1.4.0",
-    "buffer-xor": "^1.0.2",
+    "async": "^2.0.1",
+    "buffer-xor": "^2.0.1",
     "ipfs-logger": "^0.1.0",
     "js-priority-queue": "^0.1.2",
-    "k-bucket": "^0.5.0",
+    "k-bucket": "^3.0.2",
     "protocol-buffers-stream": "^1.2.0"
   },
   "devDependencies": {
     "abstract-peer-routing": "^0.1.0",
-    "code": "^1.5.0",
-    "lab": "^5.14.0",
-    "libp2p-spdy": "^0.1.0",
-    "libp2p-swarm": "^0.5.0",
-    "libp2p-tcp": "^0.1.1",
-    "multiaddr": "^1.0.0",
-    "peer-id": "^0.3.0",
-    "peer-info": "^0.3.0",
+    "code": "^3.0.2",
+    "lab": "^10.9.0",
+    "libp2p-spdy": "^0.8.1",
+    "libp2p-swarm": "^0.22.2",
+    "libp2p-tcp": "^0.7.4",
+    "multiaddr": "^2.0.2",
+    "peer-id": "^0.7.0",
+    "peer-info": "^0.7.0",
     "pre-commit": "^1.1.1",
-    "standard": "^4.5.4",
+    "standard": "^7.1.2",
     "tape": "^4.2.0"
   }
 }
