@@ -1,5 +1,5 @@
 var KBucket = require('k-bucket')
-var async = require('async')
+var queue = require('async/queue')
 var log = require('ipfs-logger').group('peer-routing ipfs-kad-router')
 var protobufs = require('protocol-buffers-stream')
 var fs = require('fs')
@@ -84,7 +84,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
     var peerList = {} // < b58Id : Peer >
 
-    var q = async.queue(queryPeer, 1)
+    var q = queue(queryPeer, 1)
 
     var closerPeers = self.kb.closest({
       id: key, // key must be an Id object exported with .toBytes()
