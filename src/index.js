@@ -1,3 +1,5 @@
+'use strict'
+
 var KBucket = require('k-bucket')
 var queue = require('async/queue')
 var log = require('ipfs-logger').group('peer-routing ipfs-kad-router')
@@ -8,6 +10,7 @@ var Id = require('peer-id')
 var multiaddr = require('multiaddr')
 var PriorityQueue = require('js-priority-queue')
 var xor = require('buffer-xor')
+var path = require('path')
 
 exports = module.exports = KadRouter
 
@@ -21,7 +24,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
   self.kBucketSize = kBucketSize || 20 // same as go-ipfs
   self.ncp // number of closest peers to return on kBucket search
 
-  var schema = fs.readFileSync(__dirname + '/kad.proto')
+  var schema = fs.readFileSync(path.join(__dirname, 'kad.proto'))
   self.createProtoStream = protobufs(schema)
 
   self.kb = new KBucket({

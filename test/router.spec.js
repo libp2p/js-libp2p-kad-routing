@@ -1,10 +1,5 @@
-var Lab = require('lab')
-var Code = require('code')
-var lab = exports.lab = Lab.script()
-
-var experiment = lab.experiment
-var test = lab.test
-var expect = Code.expect
+/* eslint-env mocha */
+'use strict'
 
 var multiaddr = require('multiaddr')
 var Id = require('peer-id')
@@ -12,11 +7,12 @@ var Peer = require('peer-info')
 var Swarm = require('libp2p-swarm')
 var tcp = require('libp2p-tcp')
 var Spdy = require('libp2p-spdy')
+var expect = require('chai').expect
 
 var KadRouter = require('./../src')
 
-experiment('PING', function () {
-  test('Add 10 peers to a k=2 kBucket', function (done) {
+describe('PING', function () {
+  it('Add 10 peers to a k=2 kBucket', function (done) {
     var mh = multiaddr('/ip4/127.0.0.1/tcp/8010')
     var p = new Peer(Id.create(), [])
     var sw = new Swarm(p)
@@ -42,8 +38,8 @@ experiment('PING', function () {
   })
 })
 
-experiment('QUERY', function () {
-  test('Should return error when kbucket is empty', function (done) {
+describe('QUERY', function () {
+  it('Should return error when kbucket is empty', function (done) {
     var mh = multiaddr('/ip4/127.0.0.1/tcp/8010')
     var p = new Peer(Id.create(), [])
     var sw = new Swarm(p)
@@ -63,7 +59,7 @@ experiment('QUERY', function () {
     }
   })
 
-  test('query depth of one', function (done) {
+  it('query depth of one', function (done) {
     var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8081')
     var p1 = new Peer(Id.create(), [])
     var sw1 = new Swarm(p1)
@@ -100,7 +96,7 @@ experiment('QUERY', function () {
     }
   })
 
-  test('query depth of two', function (done) {
+  it('query depth of two', function (done) {
     var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8091')
     var p1 = new Peer(Id.create(), [])
     var sw1 = new Swarm(p1)
@@ -176,7 +172,7 @@ experiment('QUERY', function () {
     }
   })
 
-  test('query depth of three', function (done) {
+  it('query depth of three', function (done) {
     var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8121')
     var p1 = new Peer(Id.create(), [])
     var sw1 = new Swarm(p1)
