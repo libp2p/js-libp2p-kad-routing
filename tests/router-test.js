@@ -5,6 +5,7 @@ var lab = exports.lab = Lab.script()
 var experiment = lab.experiment
 var test = lab.test
 var expect = Code.expect
+var before = lab.before
 
 var multiaddr = require('multiaddr')
 var Id = require('peer-id')
@@ -15,110 +16,147 @@ var Spdy = require('libp2p-spdy')
 
 var KadRouter = require('./../src')
 
+function makePeer (callback) {
+  Peer.create(function (err, peer) {
+    if (err) throw err
+    callback(peer)
+  })
+}
+
+function makePeers (count, callback) {
+  var peers = []
+  var created = 0
+
+  for (var i = 0; i < count; i++) {
+    makePeer(function (peer) {
+      peers.push(peer)
+      created++
+      if (created == count) {
+        callback(peers)
+      }
+    })
+  }
+}
+
+function makeId (callback) {
+  Id.create(function (err, id) {
+    if (err) throw err
+    callback(id)
+  })
+}
+
+function makeSwarm (peer, port) {
+  var maddr = multiaddr('/ip4/127.0.0.1/tcp/' + port)
+  peer.multiaddr.add(maddr)
+  var sw = new Swarm(peer)
+  sw.connection.addStreamMuxer(Spdy)
+  sw.identify = true
+  sw.__listenPort = port
+  return sw
+}
+
+function startSwarm (sw, callback) {
+  sw.transport.add('tcp', new tcp, {port: sw.__listenPort}, function () {
+    sw.listen(callback)
+  })
+}
+
+function startSwarms (swarms, callback) {
+  var started = 0
+  for (var i = 0; i < swarms.length; i++) {
+    var sw = swarms[i]
+    startSwarm(sw, function (err) {
+      if (err) throw err
+
+      started++
+      if (started == swarms.length) {
+        callback()
+      }
+    })
+  }
+}
+
 experiment('PING', function () {
+  var p
+  var peers = []
+  before(function (done) {
+    makePeers(11, function(newPeers) {
+      p = newPeers.pop()
+      peers = newPeers
+      done()
+    })
+  })
+
   test('Add 10 peers to a k=2 kBucket', function (done) {
-    function ready (sw, p) {
+    var sw = makeSwarm(p, 8010)
+    startSwarm(sw, function() {
       var kr = new KadRouter(p, sw, 2)
 
       kr.kb.once('ping', function (oldContacts, newContact) {
-        sw.close()
-        done()
+        sw.close(done)
       })
 
-      for (var i = 0; i < 10; i++) {
-        Peer.create(function(err, peer) {
-          if (err) throw err
-          peer.lastSeen = new Date()
-          kr.addPeer(peer)
-        })
+      for (var i = 0; i < peers.length; i++) {
+        var peer = peers[i]
+        peer.lastSeen = new Date()
+        kr.addPeer(peer)
       }
-    }
-
-    Peer.create(function (err, p) {
-      var mh = multiaddr('/ip4/127.0.0.1/tcp/8010')
-      var sw = new Swarm(p)
-      sw.connection.addStreamMuxer(Spdy)
-      sw.identify = true
-      sw.transport.add('tcp', new tcp, {port: 8010}, function() { ready(sw, p) })
     })
   })
 })
 
 experiment('QUERY', function () {
+  var p
+  var id
+
+  before(function (done) {
+    makePeer(function (peer) {
+      p = peer
+      if (p && id) done()
+    })
+
+    makeId(function (peerId) {
+      id = peerId
+      if (p && id) done()
+    })
+  })
+
   test('Should return error when kbucket is empty', function (done) {
-    var mh = multiaddr('/ip4/127.0.0.1/tcp/8010')
-    Peer.create(function (err, p) {
-      if (err) throw err
+    var sw = makeSwarm(p, 8005)
+    startSwarm(sw, function () {
+      var kr = new KadRouter(p, sw, 2)
 
-      var sw = new Swarm(p)
-      sw.transport.add('tcp', new tcp, {port: 8005}, ready)
+      kr.findPeers(id.toBytes(), function (err, peerQueue) {
+        expect(peerQueue).to.equal(undefined)
+        expect(err).to.be.instanceof(Error)
+        done()
+      })
+    })
+  })
+})
 
-      function ready () {
-        sw.connection.addStreamMuxer(Spdy)
-        sw.identify = true
+experiment('QUERY2', function () {
+  var p1, p2
+  var sw1, sw2
+  var unknownId
 
-        var kr = new KadRouter(p, sw, 2)
-
-        Id.create(function (err, id) {
-          if (err) throw err
-
-          kr.findPeers(id.toBytes(), function (err, peerQueue) {
-            expect(peerQueue).to.equal(undefined)
-            expect(err).to.be.instanceof(Error)
-            done()
-          })
-        })
-      }
+  before(function (done) {
+    makePeers(2, function(peers) {
+      p1 = peers[0]
+      p2 = peers[1]
+      sw1 = makeSwarm(p1, 8081)
+      sw2 = makeSwarm(p2, 8082)
+      makeId(function (id) {
+        unknownId = id
+        done()
+      })
     })
   })
 
   test('query depth of one', function (done) {
-    var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8081')
-    var mh2 = multiaddr('/ip4/127.0.0.1/tcp/8082')
+    startSwarms([sw1, sw2], ready)
 
-    var p1, p2
-    var sw1, sw2
-    var unknownId
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-      p1 = p
-      p1.multiaddr.add(mh1)
-      sw1 = new Swarm(p1)
-      sw1.connection.addStreamMuxer(Spdy)
-      sw1.identify = true
-      sw1.transport.add('tcp', new tcp, {port: 8081}, function () {
-        sw1.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-      p2 = p
-      p2.multiaddr.add(mh2)
-      sw2 = new Swarm(p2)
-      sw2.connection.addStreamMuxer(Spdy)
-      sw2.identify = true
-      sw2.transport.add('tcp', new tcp, {port: 8082}, function () {
-        sw2.listen(ready)
-      })
-    })
-
-    Id.create(function (err, id) {
-      if (err) throw err
-      unknownId = id
-      ready()
-    })
-
-    var counter = 0
-
-    function ready (err) {
-      if (err) throw err
-      counter++
-      if (counter < 3) {
-        return
-      }
-
+    function ready () {
       var krOne = new KadRouter(p1, sw1)
       var krTwo = new KadRouter(p2, sw2)
 
@@ -132,110 +170,39 @@ experiment('QUERY', function () {
       })
     }
   })
+})
+
+experiment('QUERY3', function () {
+  var p1, p2, p3, p4, p5, p6
+  var sw1, sw2, sw3, sw4, sw5, sw6
+  var unknownId
+
+  before(function (done) {
+    makePeers(6, function(peers) {
+      p1 = peers[0]
+      p2 = peers[1]
+      p3 = peers[2]
+      p4 = peers[3]
+      p5 = peers[4]
+      p6 = peers[5]
+      sw1 = makeSwarm(p1, 8091)
+      sw2 = makeSwarm(p2, 8092)
+      sw3 = makeSwarm(p3, 8093)
+      sw4 = makeSwarm(p4, 8094)
+      sw5 = makeSwarm(p5, 8095)
+      sw6 = makeSwarm(p6, 8096)
+
+      makeId(function (id) {
+        unknownId = id
+        done()
+      })
+    })
+  })
 
   test('query depth of two', function (done) {
-    var p1, p2, p3, p4, p5, p6
-    var sw1, sw2, sw3, sw4, sw5, sw6
-    var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8091')
-    var mh2 = multiaddr('/ip4/127.0.0.1/tcp/8092')
-    var mh3 = multiaddr('/ip4/127.0.0.1/tcp/8093')
-    var mh4 = multiaddr('/ip4/127.0.0.1/tcp/8094')
-    var mh5 = multiaddr('/ip4/127.0.0.1/tcp/8095')
-    var mh6 = multiaddr('/ip4/127.0.0.1/tcp/8096')
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p1 = p
-      p1.multiaddr.add(mh1)
-      sw1 = new Swarm(p1)
-      sw1.connection.addStreamMuxer(Spdy)
-      sw1.identify = true
-      sw1.transport.add('tcp', new tcp, {port: 8091}, function () {
-        sw1.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p2 = p
-      p2.multiaddr.add(mh2)
-      sw2 = new Swarm(p2)
-      sw2.connection.addStreamMuxer(Spdy)
-      sw2.identify = true
-      sw2.transport.add('tcp', new tcp, {port: 8092}, function () {
-        sw2.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p3 = p
-      p3.multiaddr.add(mh3)
-      sw3 = new Swarm(p3)
-      sw3.connection.addStreamMuxer(Spdy)
-      sw3.identify = true
-      sw3.transport.add('tcp', new tcp, {port: 8093}, function () {
-        sw3.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p4 = p
-      p4.multiaddr.add(mh4)
-      sw4 = new Swarm(p4)
-      sw4.connection.addStreamMuxer(Spdy)
-      sw4.identify = true
-      sw4.transport.add('tcp', new tcp, {port: 8094}, function () {
-        sw4.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p5 = p
-      p5.multiaddr.add(mh5)
-      sw5 = new Swarm(p5)
-      sw5.connection.addStreamMuxer(Spdy)
-      sw5.identify = true
-      sw5.transport.add('tcp', new tcp, {port: 8095}, function () {
-        sw5.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p6 = p
-      p6.multiaddr.add(mh6)
-      sw6 = new Swarm(p6)
-      sw6.connection.addStreamMuxer(Spdy)
-      sw6.identify = true
-      sw6.transport.add('tcp', new tcp, {port: 8096}, function () {
-        sw6.listen(ready)
-      })
-    })
-
-    var unknownId
-    Id.create(function (err, id) {
-      if (err) throw err
-      unknownId = id
-      ready()
-    })
-
-    var counter = 0
+    startSwarms([sw1, sw2, sw3, sw4, sw5, sw6], ready)
 
     function ready () {
-      counter++
-      if (counter < 7) {
-        return
-      }
-
       var krOne = new KadRouter(p1, sw1)
       var krTwo = new KadRouter(p2, sw2)
       var krThree = new KadRouter(p3, sw3)
@@ -260,110 +227,38 @@ experiment('QUERY', function () {
       })
     }
   })
+})
+
+experiment('QUERY4', function () {
+  var p1, p2, p3, p4, p5, p6
+  var sw1, sw2, sw3, sw4, sw5, sw6
+  var unknownId
+  before(function (done) {
+    makePeers(6, function(peers) {
+      p1 = peers[0]
+      p2 = peers[1]
+      p3 = peers[2]
+      p4 = peers[3]
+      p5 = peers[4]
+      p6 = peers[5]
+      sw1 = makeSwarm(p1, 8121)
+      sw2 = makeSwarm(p2, 8122)
+      sw3 = makeSwarm(p3, 8123)
+      sw4 = makeSwarm(p4, 8124)
+      sw5 = makeSwarm(p5, 8125)
+      sw6 = makeSwarm(p6, 8126)
+
+      makeId(function (id) {
+        unknownId = id
+        done()
+      })
+    })
+  })
 
   test('query depth of three', function (done) {
-    var p1, p2, p3, p4, p5, p6
-    var sw1, sw2, sw3, sw4, sw5, sw6
-    var mh1 = multiaddr('/ip4/127.0.0.1/tcp/8121')
-    var mh2 = multiaddr('/ip4/127.0.0.1/tcp/8122')
-    var mh3 = multiaddr('/ip4/127.0.0.1/tcp/8123')
-    var mh4 = multiaddr('/ip4/127.0.0.1/tcp/8124')
-    var mh5 = multiaddr('/ip4/127.0.0.1/tcp/8125')
-    var mh6 = multiaddr('/ip4/127.0.0.1/tcp/8126')
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p1 = p
-      p1.multiaddr.add(mh1)
-      sw1 = new Swarm(p1)
-      sw1.connection.addStreamMuxer(Spdy)
-      sw1.identify = true
-      sw1.transport.add('tcp', new tcp, {port: 8121}, function () {
-        sw1.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p2 = p
-      p2.multiaddr.add(mh2)
-      sw2 = new Swarm(p2)
-      sw2.connection.addStreamMuxer(Spdy)
-      sw2.identify = true
-      sw2.transport.add('tcp', new tcp, {port: 8122}, function () {
-        sw2.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p3 = p
-      p3.multiaddr.add(mh3)
-      sw3 = new Swarm(p3)
-      sw3.connection.addStreamMuxer(Spdy)
-      sw3.identify = true
-      sw3.transport.add('tcp', new tcp, {port: 8123}, function () {
-        sw3.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p4 = p
-      p4.multiaddr.add(mh4)
-      sw4 = new Swarm(p4)
-      sw4.connection.addStreamMuxer(Spdy)
-      sw4.identify = true
-      sw4.transport.add('tcp', new tcp, {port: 8124}, function () {
-        sw4.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p5 = p
-      p5.multiaddr.add(mh5)
-      sw5 = new Swarm(p5)
-      sw5.connection.addStreamMuxer(Spdy)
-      sw5.identify = true
-      sw5.transport.add('tcp', new tcp, {port: 8125}, function () {
-        sw5.listen(ready)
-      })
-    })
-
-    Peer.create(function (err, p) {
-      if (err) throw err
-
-      p6 = p
-      p6.multiaddr.add(mh6)
-      sw6 = new Swarm(p6)
-      sw6.connection.addStreamMuxer(Spdy)
-      sw6.identify = true
-      sw6.transport.add('tcp', new tcp, {port: 8126}, function () {
-        sw6.listen(ready)
-      })
-    })
-
-    var unknownId
-    Id.create(function (err, id) {
-      if (err) throw err
-      unknownId = id
-      ready()
-    })
-
-    var counter = 0
-
+    startSwarms([sw1, sw2, sw3, sw4, sw5, sw6], ready)
+    
     function ready () {
-      counter++
-      if (counter < 7) {
-        return
-      }
-
       var krOne = new KadRouter(p1, sw1)
       var krTwo = new KadRouter(p2, sw2)
       var krThree = new KadRouter(p3, sw3)
