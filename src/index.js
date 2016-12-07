@@ -8,6 +8,7 @@ var Id = require('peer-id')
 var multiaddr = require('multiaddr')
 var PriorityQueue = require('js-priority-queue')
 var xor = require('buffer-xor')
+var toStream = require('pull-stream-to-stream')
 
 exports = module.exports = KadRouter
 
@@ -39,7 +40,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
       self.kb.add(sorted[i])
     }
 
-    self.kb.remove(sorted[sorted.length - 1])
+    self.kb.remove(sorted[sorted.length - 1].id)
 
     // add the new one
     self.kb.add(newContact)
@@ -47,7 +48,8 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
   // register /ipfs/dht/1.0.0 protocol handler
 
-  swarmSelf.handleProtocol('/ipfs/dht/1.0.0', function (stream) {
+  swarmSelf.handle('/ipfs/dht/1.0.0', function (protocol, conn) {
+    var stream = toStream(conn)
     var ps = self.createProtoStream()
 
     ps.on('query', function (msg) {
@@ -86,10 +88,10 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
     var q = queue(queryPeer, 1)
 
-    var closerPeers = self.kb.closest({
-      id: key, // key must be an Id object exported with .toBytes()
-      n: self.ncp
-    })
+    var closerPeers = self.kb.closest(
+      key, // key must be an Id object exported with .toBytes()
+      self.ncp
+    )
 
     if (closerPeers.length === 0) {
       return callback(new Error('kbuckets are empty'))
@@ -104,8 +106,9 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
       // 2. get closer peers
       // 3. if we already queried the peer, skip
       // 4. if not, add to the peerList and the queue (q.push(peer))
-
-      swarmSelf.dial(peerToQuery, {}, '/ipfs/dht/1.0.0', function (err, stream) {
+      console.log('querying peer', peerToQuery)
+      swarmSelf.dial(peerToQuery, '/ipfs/dht/1.0.0', function (err, conn) {
+        var stream = toStream(conn)
         if (err) {
           log.error('Could not open a stream to:', peerToQuery.id.toB58String())
           return cb()
@@ -119,6 +122,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
         var ps = self.createProtoStream()
 
         ps.on('query', function (msg) {
+          console.log('got query message:', msg)
           // Didn't get any new peers to query, meaning our contact has its kbuckets empty
           if (msg.closerPeers.length === 0) {
             return cb()
