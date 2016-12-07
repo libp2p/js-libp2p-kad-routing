@@ -4,7 +4,7 @@
   "description": "Node.js Implementation of the Kademlia router for libp2p",
   "main": "src/index.js",
   "scripts": {
-    "test": "./node_modules/.bin/lab tests/*-test.js",
+    "test": "./node_modules/.bin/lab -I 'btoa,atob,__core-js_shared__' tests/*-test.js",
     "compliance": "node tests/compliance.js"
   },
   "pre-commit": [],
@@ -40,7 +40,7 @@
   "devDependencies": {
     "abstract-peer-routing": "^0.1.0",
     "code": "^1.5.0",
-    "lab": "^11.1.0",
+    "lab": "^11.2.1",
     "libp2p-spdy": "^0.10.0",
     "libp2p-tcp": "^0.9.1",
     "multiaddr": "^2.0.3",
