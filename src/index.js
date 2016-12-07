@@ -1,14 +1,15 @@
 var KBucket = require('k-bucket')
 var queue = require('async/queue')
 var log = require('ipfs-logger').group('peer-routing ipfs-kad-router')
-var protobufs = require('protocol-buffers-stream')
+var protocolBufffers = require('protocol-buffers')
+var pull = require('pull-stream')
+var lp = require('pull-length-prefixed')
 var fs = require('fs')
 var Peer = require('peer-info')
 var Id = require('peer-id')
 var multiaddr = require('multiaddr')
 var PriorityQueue = require('js-priority-queue')
 var xor = require('buffer-xor')
-var toStream = require('pull-stream-to-stream')
 
 exports = module.exports = KadRouter
 
@@ -22,8 +23,8 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
   self.kBucketSize = kBucketSize || 20 // same as go-ipfs
   self.ncp // number of closest peers to return on kBucket search
 
-  var schema = fs.readFileSync(__dirname + '/kad.proto')
-  self.createProtoStream = protobufs(schema)
+  var schema = fs.readFileSync(__dirname + '/kad.proto', {encoding: 'utf8'})
+  self.pb = protocolBufffers(schema)
 
   self.kb = new KBucket({
     localNodeId: peerSelf.id.toBytes(),
@@ -49,10 +50,17 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
   // register /ipfs/dht/1.0.0 protocol handler
 
   swarmSelf.handle('/ipfs/dht/1.0.0', function (protocol, conn) {
-    var stream = toStream(conn)
-    var ps = self.createProtoStream()
+    pull(
+      conn,
+      lp.decode(),
+      pull.map(self.pb.Query.decode),
+      pull.map(handleQuery),
+      pull.map(self.pb.Query.encode),
+      lp.encode(),
+      conn
+    )
 
-    ps.on('query', function (msg) {
+    function handleQuery (msg) {
       var closerPeers = self.kb.closest({
         id: msg.key,
         n: self.ncp
@@ -65,15 +73,11 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
         }
       }) : []
 
-      ps.query({
+      return {
         key: msg.key,
         closerPeers: closerPeers
-      })
-
-      ps.finalize()
-    })
-
-    ps.pipe(stream).pipe(ps)
+      }
+    }
   })
 
   // Interface
@@ -106,9 +110,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
       // 2. get closer peers
       // 3. if we already queried the peer, skip
       // 4. if not, add to the peerList and the queue (q.push(peer))
-      console.log('querying peer', peerToQuery)
       swarmSelf.dial(peerToQuery, '/ipfs/dht/1.0.0', function (err, conn) {
-        var stream = toStream(conn)
         if (err) {
           log.error('Could not open a stream to:', peerToQuery.id.toB58String())
           return cb()
@@ -116,13 +118,26 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
         // consider the peer to our finger table
         self.addPeer(peerToQuery)
-
         peerList[peerToQuery.id.toB58String()] = peerToQuery
 
-        var ps = self.createProtoStream()
+        var query = {key: key, closerPeers: []}
+        pull(
+          pull.once(query),
+          pull.map(self.pb.Query.encode),
+          lp.encode(),
+          conn,
+          lp.decode(),
+          pull.map(self.pb.Query.decode),
+          pull.take(1),
+          pull.collect(handleQuery)
+        )
 
-        ps.on('query', function (msg) {
-          console.log('got query message:', msg)
+        function handleQuery (err, msgs) {
+          if (err || msgs.length < 1) {
+            log.error('Error receiving query', err)
+            return cb()
+          }
+          var msg = msgs[0]
           // Didn't get any new peers to query, meaning our contact has its kbuckets empty
           if (msg.closerPeers.length === 0) {
             return cb()
@@ -153,15 +168,7 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
           })
 
           cb()
-        })
-
-        ps.query({
-          key: key,
-          closerPeers: []
-        })
-
-        ps.pipe(stream).pipe(ps)
-        ps.finalize()
+        }
       })
     }
 
