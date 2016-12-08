@@ -16,10 +16,23 @@ var Spdy = require('libp2p-spdy')
 
 var KadRouter = require('./../src')
 
-function makePeer (callback) {
-  Peer.create(function (err, peer) {
+var TEST_ID_OBJECTS = require('./test_peer_ids.json')
+
+function getTestId (callback) {
+  if (TEST_ID_OBJECTS.length < 1) {
+    throw new Error(
+      'Out of test ids! You should generate some more and save them to test_peer_ids.json'
+    )
+  }
+  Id.createFromJSON(TEST_ID_OBJECTS.pop(), function (err, id) {
     if (err) throw err
-    callback(peer)
+    callback(id)
+  })
+}
+
+function makePeer (callback) {
+  getTestId(function (id) {
+    callback(new Peer(id))
   })
 }
 
@@ -36,13 +49,6 @@ function makePeers (count, callback) {
       }
     })
   }
-}
-
-function makeId (callback) {
-  Id.create(function (err, id) {
-    if (err) throw err
-    callback(id)
-  })
 }
 
 function makeSwarm (peer, port) {
@@ -115,7 +121,7 @@ experiment('QUERY', function () {
       if (p && id) done()
     })
 
-    makeId(function (peerId) {
+    getTestId(function (peerId) {
       id = peerId
       if (p && id) done()
     })
@@ -146,7 +152,7 @@ experiment('QUERY2', function () {
       p2 = peers[1]
       sw1 = makeSwarm(p1, 8081)
       sw2 = makeSwarm(p2, 8082)
-      makeId(function (id) {
+      getTestId(function (id) {
         unknownId = id
         done()
       })
@@ -192,7 +198,7 @@ experiment('QUERY3', function () {
       sw5 = makeSwarm(p5, 8095)
       sw6 = makeSwarm(p6, 8096)
 
-      makeId(function (id) {
+      getTestId(function (id) {
         unknownId = id
         done()
       })
@@ -248,7 +254,7 @@ experiment('QUERY4', function () {
       sw5 = makeSwarm(p5, 8125)
       sw6 = makeSwarm(p6, 8126)
 
-      makeId(function (id) {
+      getTestId(function (id) {
         unknownId = id
         done()
       })
@@ -257,7 +263,7 @@ experiment('QUERY4', function () {
 
   test('query depth of three', function (done) {
     startSwarms([sw1, sw2, sw3, sw4, sw5, sw6], ready)
-    
+
     function ready () {
       var krOne = new KadRouter(p1, sw1)
       var krTwo = new KadRouter(p2, sw2)
