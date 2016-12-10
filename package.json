@@ -37,7 +37,7 @@
     "code": "^1.5.0",
     "lab": "^11.1.0",
     "libp2p-spdy": "^0.1.0",
-    "libp2p-swarm": "^0.26.0",
+    "libp2p-swarm": "^0.26.4",
     "libp2p-tcp": "^0.8.1",
     "multiaddr": "^2.0.3",
     "peer-id": "^0.3.0",
