@@ -42,7 +42,7 @@
     "libp2p-spdy": "^0.10.0",
     "libp2p-tcp": "^0.9.1",
     "multiaddr": "^2.0.3",
-    "peer-id": "^0.8.0",
+    "peer-id": "^0.8.1",
     "peer-info": "^0.8.0",
     "pre-commit": "^1.2.1",
     "standard": "^8.4.0",
