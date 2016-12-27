@@ -4,13 +4,22 @@
   "description": "Node.js Implementation of the Kademlia router for libp2p",
   "main": "src/index.js",
   "scripts": {
-    "test": "./node_modules/.bin/lab -I 'btoa,atob,__core-js_shared__' tests/*-test.js",
-    "compliance": "node tests/compliance.js"
+    "test": "aegir-test",
+    "lint": "aegir-lint",
+    "test:node": "aegir-test node",
+    "test:browser": "aegir-test browser",
+    "build": "aegir-build",
+    "docs": "aegir-docs",
+    "release": "aegir-release --docs",
+    "release-minor": "aegir-release --type minor --docs",
+    "release-major": "aegir-release --type major --docs",
+    "coverage": "aegir-coverage",
+    "coverage-publish": "aegir-coverage publish"
   },
   "pre-commit": [],
   "repository": {
     "type": "git",
-    "url": "https://github.com/diasdavid/node-libp2p-kad-routing.git"
+    "url": "https://github.com/libp2p/node-libp2p-kad-routing.git"
   },
   "keywords": [
     "IPFS"
@@ -18,12 +27,12 @@
   "author": "David Dias <daviddias@ipfs.io>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/diasdavid/node-libp2p-kad-routing/issues"
+    "url": "https://github.com/libp2p/node-libp2p-kad-routing/issues"
   },
   "engines": {
     "node": "^4.0.0"
   },
-  "homepage": "https://github.com/diasdavid/node-libp2p-kad-routing",
+  "homepage": "https://github.com/libp2p/node-libp2p-kad-routing",
   "dependencies": {
     "async": "^2.1.2",
     "buffer-xor": "^1.0.2",
@@ -37,15 +46,12 @@
   },
   "devDependencies": {
     "abstract-peer-routing": "^0.1.0",
-    "code": "^1.5.0",
-    "lab": "^11.2.1",
+    "aegir": "^9.3.0",
     "libp2p-spdy": "^0.10.0",
     "libp2p-tcp": "^0.9.1",
     "multiaddr": "^2.0.3",
     "peer-id": "^0.8.1",
     "peer-info": "^0.8.0",
-    "pre-commit": "^1.2.2",
-    "standard": "^8.4.0",
-    "tape": "^4.2.0"
+    "pre-commit": "^1.2.2"
   }
 }

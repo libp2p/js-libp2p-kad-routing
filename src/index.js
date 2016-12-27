@@ -1,69 +1,89 @@
-var KBucket = require('k-bucket')
-var queue = require('async/queue')
-var log = require('ipfs-logger').group('peer-routing ipfs-kad-router')
-var protocolBufffers = require('protocol-buffers')
-var pull = require('pull-stream')
-var lp = require('pull-length-prefixed')
-var fs = require('fs')
-var Peer = require('peer-info')
-var Id = require('peer-id')
-var multiaddr = require('multiaddr')
-var PriorityQueue = require('js-priority-queue')
-var xor = require('buffer-xor')
+'use strict'
 
-exports = module.exports = KadRouter
+const KBucket = require('k-bucket')
+const queue = require('async/queue')
+const log = require('ipfs-logger').group('peer-routing ipfs-kad-router')
+const protocolBufffers = require('protocol-buffers')
+const pull = require('pull-stream')
+const lp = require('pull-length-prefixed')
+const fs = require('fs')
+const Peer = require('peer-info')
+const Id = require('peer-id')
+const multiaddr = require('multiaddr')
+const PriorityQueue = require('js-priority-queue')
+const xor = require('buffer-xor')
 
-function KadRouter (peerSelf, swarmSelf, kBucketSize) {
-  var self = this
+const Message = require('./message')
 
-  if (!(self instanceof KadRouter)) {
-    throw new Error('KadRouter must be called with new')
-  }
+const PROTOCOL_DHT = '/ipfs/kad/1.0.0'
 
-  self.kBucketSize = kBucketSize || 20 // same as go-ipfs
-  self.ncp // number of closest peers to return on kBucket search
+class KadRouter {
+  constructor (peerSelf, swarmSelf, kBucketSize) {
+    /**
+     * Local peer (yourself)
+     * @type {PeerId}
+     */
+    this.self = peerSelf
 
-  var schema = fs.readFileSync(__dirname + '/kad.proto', {encoding: 'utf8'})
-  self.pb = protocolBufffers(schema)
+    /**
+     * @type {Swarm}
+     */
+    this.swarm = swarmSelf
 
-  self.kb = new KBucket({
-    localNodeId: peerSelf.id.toBytes(),
-    numberOfNodesPerKBucket: self.kBucketSize
-  })
+    /**
+     * k-bucket size, defaults to 20.
+     * @type {number}
+     */
+    this.kBucketSize = kBucketSize || 20
 
-  self.kb.on('ping', function (oldContacts, newContact) {
-    var sorted = oldContacts.sort(function (a, b) {
-      return a.peer.lastSeen - b.peer.lastSeen
+    /**
+     * Number of closest peers to return on kBucket search
+     * @type {number}
+     */
+    this.ncp = 6
+
+
+    this.kb = new KBucket({
+      localNodeId: this.self.id.toBytes(),
+      numberOfNodesPerKBucket: this.kBucketSize
     })
 
-    // add all less the last seen contact
-    for (var i = 0; i < sorted.length - 1; i++) {
-      self.kb.add(sorted[i])
-    }
+    this.kb.on('ping', (oldContacts, newContact) => {
+      const sorted = oldContacts.sort((a, b) => {
+        return a.peer.lastSeen - b.peer.lastSeen
+      })
 
-    self.kb.remove(sorted[sorted.length - 1].id)
+      const oldest = sorted.pop()
 
-    // add the new one
-    self.kb.add(newContact)
-  })
+      // add all less the last seen contact
+      sorted.forEach((contact) => this.kb.add(contact))
 
-  // register /ipfs/dht/1.0.0 protocol handler
+      // remove the oldest one
+      this.kb.remove(oldest.id)
 
-  swarmSelf.handle('/ipfs/dht/1.0.0', function (protocol, conn) {
+      // add the new one
+      this.kb.add(newContact)
+    })
+
+    this._handleStream = this._handleStream.bind(this)
+    this.swarm.handle(PROTOCOL_DHT, this._handleStream)
+  }
+
+  _handleStream (protocol, conn) {
     pull(
       conn,
       lp.decode(),
-      pull.map(self.pb.Query.decode),
-      pull.map(handleQuery),
-      pull.map(self.pb.Query.encode),
+      pull.map((rawMsg) => Message.decode(rawMsg)),
+      pull.asyncMap(handleQuery),
+      pull.map((response) => response.encode()),
       lp.encode(),
       conn
     )
 
     function handleQuery (msg) {
-      var closerPeers = self.kb.closest({
+      var closerPeers = this.kb.closest({
         id: msg.key,
-        n: self.ncp
+        n: this.ncp
       })
 
       closerPeers = closerPeers.length > 0 ? closerPeers.map(function (cp) {
@@ -78,11 +98,11 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
         closerPeers: closerPeers
       }
     }
-  })
+  }
 
   // Interface
 
-  self.findPeers = function (key, callback) {
+  findPeers (key, callback) {
     // 1. get closest peers
     // 2. ping them for more closer peers
     // 3. use in memory qeues with async (closer peers to ping, only add them if they are not yet on the priority queue)
@@ -92,9 +112,9 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
 
     var q = queue(queryPeer, 1)
 
-    var closerPeers = self.kb.closest(
+    var closerPeers = this.kb.closest(
       key, // key must be an Id object exported with .toBytes()
-      self.ncp
+      this.ncp
     )
 
     if (closerPeers.length === 0) {
@@ -110,24 +130,24 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
       // 2. get closer peers
       // 3. if we already queried the peer, skip
       // 4. if not, add to the peerList and the queue (q.push(peer))
-      swarmSelf.dial(peerToQuery, '/ipfs/dht/1.0.0', function (err, conn) {
+      this.swarm.dial(peerToQuery, '/ipfs/dht/1.0.0', function (err, conn) {
         if (err) {
           log.error('Could not open a stream to:', peerToQuery.id.toB58String())
           return cb()
         }
 
         // consider the peer to our finger table
-        self.addPeer(peerToQuery)
+        this.addPeer(peerToQuery)
         peerList[peerToQuery.id.toB58String()] = peerToQuery
 
         var query = {key: key, closerPeers: []}
         pull(
           pull.once(query),
-          pull.map(self.pb.Query.encode),
+          pull.map(this.pb.Query.encode),
           lp.encode(),
           conn,
           lp.decode(),
-          pull.map(self.pb.Query.decode),
+          pull.map(this.pb.Query.decode),
           pull.take(1),
           pull.collect(handleQuery)
         )
@@ -191,10 +211,12 @@ function KadRouter (peerSelf, swarmSelf, kBucketSize) {
     }
   }
 
-  self.addPeer = function (peer) {
-    self.kb.add({
+  addPeer (peer) {
+    this.kb.add({
       id: peer.id.toBytes(),
       peer: peer
     })
   }
 }
+
+module.exports = KadRouter
