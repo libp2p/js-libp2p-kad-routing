@@ -59,4 +59,6 @@ class Message {
   }
 }
 
+Message.TYPES = MESSAGE_TYPE
+
 module.exports = Message

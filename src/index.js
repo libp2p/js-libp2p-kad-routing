@@ -2,7 +2,7 @@
 
 const KBucket = require('k-bucket')
 const queue = require('async/queue')
-const log = require('ipfs-logger').group('peer-routing ipfs-kad-router')
+const debug = require('debug')
 const protocolBufffers = require('protocol-buffers')
 const pull = require('pull-stream')
 const lp = require('pull-length-prefixed')
@@ -14,6 +14,9 @@ const PriorityQueue = require('js-priority-queue')
 const xor = require('buffer-xor')
 
 const Message = require('./message')
+
+const log = debug('libp2p:dht')
+log.error = debug('libp2p:dht:error')
 
 const PROTOCOL_DHT = '/ipfs/kad/1.0.0'
 
@@ -48,56 +51,102 @@ class KadRouter {
       numberOfNodesPerKBucket: this.kBucketSize
     })
 
-    this.kb.on('ping', (oldContacts, newContact) => {
-      const sorted = oldContacts.sort((a, b) => {
-        return a.peer.lastSeen - b.peer.lastSeen
-      })
-
-      const oldest = sorted.pop()
-
-      // add all less the last seen contact
-      sorted.forEach((contact) => this.kb.add(contact))
-
-      // remove the oldest one
-      this.kb.remove(oldest.id)
-
-      // add the new one
-      this.kb.add(newContact)
-    })
+    this.kb.on('ping', this._onKbPing.bind(this))
 
     this._handleStream = this._handleStream.bind(this)
     this.swarm.handle(PROTOCOL_DHT, this._handleStream)
+
+    this.messageHandlers = {
+      [Message.TYPES.GET_VALUE]: this._handleMsgGetValue,
+      [Message.TYPES.PUT_VALUE]: this._handleMsgPutValue,
+      [Message.TYPES.FIND_NODE]: this._handleMsgFindNode,
+      [Message.TYPES.ADD_PROVIDER]: this._handleMsgAddProvider,
+      [Message.TYPES.GET_PROVIDERS]: this._handleMsgGetProviders,
+      [Message.TYPES.PING]: this._handleMsgPing
+    }
+  }
+
+  _onKbPing (oldContacts, newContact) {
+    const sorted = oldContacts.sort((a, b) => {
+      return a.peer.lastSeen - b.peer.lastSeen
+    })
+
+    const oldest = sorted.pop()
+
+    // add all less the last seen contact
+    sorted.forEach((contact) => this.kb.add(contact))
+
+    // remove the oldest one
+    this.kb.remove(oldest.id)
+
+    // add the new one
+    this.kb.add(newContact)
   }
 
   _handleStream (protocol, conn) {
-    pull(
-      conn,
-      lp.decode(),
-      pull.map((rawMsg) => Message.decode(rawMsg)),
-      pull.asyncMap(handleQuery),
-      pull.map((response) => response.encode()),
-      lp.encode(),
-      conn
-    )
-
-    function handleQuery (msg) {
-      var closerPeers = this.kb.closest({
-        id: msg.key,
-        n: this.ncp
-      })
-
-      closerPeers = closerPeers.length > 0 ? closerPeers.map(function (cp) {
-        return {
-          id: cp.peer.id.toBytes(),
-          addrs: cp.peer.multiaddrs.map(function (mh) { return mh.buffer })
-        }
-      }) : []
-
-      return {
-        key: msg.key,
-        closerPeers: closerPeers
+    conn.getPeerInfo((err, peer) => {
+      if (err) {
+        log.error('Failed to get peer info')
+        return
       }
+
+      pull(
+        conn,
+        lp.decode(),
+        pull.map((rawMsg) => Message.decode(rawMsg)),
+        pull.asyncMap((msg, cb) => {
+          this._handleMessage(msg, peer, cb)
+        }),
+        // Not all handlers will return a response
+        pull.filter(Boolean),
+        pull.map((response) => response.encode()),
+        lp.encode(),
+        conn
+      )
+    })
+  }
+
+  /**
+   * Handle incoming messages
+   *
+   * @param {Message} msg
+   * @param {PeerInfo} peer
+   * @param {function(Error, Message)} callback
+   * @returns {undefined}
+   * @private
+   */
+  _handleMessage (msg, peer, callback) {
+    // update the peer
+    this._update(peer)
+
+    // get handler & exectue it
+    const handler = this._getMessageHandler(msg.type)
+
+    if (!handler) {
+      log.error(`no handler found for message type: ${msg.type}`)
+      return callback()
     }
+
+    handler(msg, peer, callback)
+  }
+
+  /**
+   * Signal the routing table to update its last-seen status
+   * of the given peer.
+   *
+   * @param {PeerInfo} peer
+   * @private
+   */
+  _update (peer) {
+    peer.lastSeen = new Date().getTime()
+    this.kb.update({
+      id: peer.id,
+      peer: peer
+    })
+  }
+
+  _getMessageHandler (type) {
+    return this.messageHandlers[type]
   }
 
   // Interface
