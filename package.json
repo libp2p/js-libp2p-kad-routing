@@ -37,7 +37,10 @@
     "async": "^2.1.2",
     "debug": "^2.5.2",
     "k-bucket": "^3.2.1",
+    "multiaddr": "^2.1.1",
     "multihashing-async": "^0.3.0",
+    "peer-id": "^0.8.1",
+    "peer-info": "^0.8.2",
     "protocol-buffers": "^3.2.1",
     "pull-length-prefixed": "^1.2.0",
     "pull-stream": "^3.5.0"

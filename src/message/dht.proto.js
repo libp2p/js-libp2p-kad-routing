@@ -39,7 +39,7 @@ message Message {
 
   message Peer {
     // ID of a given peer.
-    optional string id = 1;
+    optional bytes id = 1;
 
     // multiaddrs for a given peer
     repeated bytes addrs = 2;

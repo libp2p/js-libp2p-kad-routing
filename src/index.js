@@ -4,6 +4,7 @@ const debug = require('debug')
 
 const rpc = require('./rpc')
 const RoutingTable = require('./routing')
+const utils = require('./utils')
 
 const log = debug('libp2p:dht')
 log.error = debug('libp2p:dht:error')
@@ -58,6 +59,24 @@ class KadRouter {
   }
 
   /**
+   * Returns the routing tables closest peers, for the key of
+   * the message.
+   *
+   * @param {Message} msg
+   * @param {function(Error, Array<PeerInfo>)} callback
+   * @returns {undefined}
+   * @private
+   */
+  _nearestPeersToQuery (msg, callback) {
+    utils.keyToBuffer(msg.key, (err, key) => {
+      if (err) {
+        return callback(err)
+      }
+      this.routingTable.closestPeers(key, this.ncp, callback)
+    })
+  }
+
+  /**
    * Get the nearest peers to the given query, but iff closer
    * than self.
    *
@@ -73,10 +92,17 @@ class KadRouter {
         return callback(err)
       }
 
-      if (closer.length === 0) {
-        return callback(null, closer)
-      }
-      // TODO
+      const filtered = closer.filter((closer) => {
+        if (closer.id.equals(this.self.id)) {
+          // Should bail, not sure
+          log.error('trying to return self as closer')
+          return false
+        }
+
+        return !closer.id.equals(peer.id)
+      })
+
+      callback(null, filtered)
     })
   }
 
