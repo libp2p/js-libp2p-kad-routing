@@ -39,11 +39,85 @@ describe('RoutingTable', () => {
           utils.bufferToKey(id.id, (err, key) => {
             expect(err).to.not.exist
             expect(
-              table.closestPeers(key).length
+              table.closestPeers(key, 5).length
             ).to.be.above(0)
             cb()
           })
         }, cb)
+      ], done)
+    })
+  })
+
+  it('remove', (done) => {
+    createPeers(10, (err, peers) => {
+      let k
+      expect(err).to.not.exist
+      waterfall([
+        (cb) => each(peers, (peer, cb) => {
+          table.add(peer, cb)
+        }, cb),
+        (cb) => {
+          const id = peers[2]
+          utils.bufferToKey(id.id, (err, key) => {
+            expect(err).to.not.exist
+            k = key
+            expect(
+              table.closestPeers(key, 10)
+            ).to.have.length(10)
+            cb()
+          })
+        },
+        (cb) => table.remove(peers[5], cb),
+        (cb) => {
+          expect(
+            table.closestPeers(k, 10)
+          ).to.have.length(9)
+
+          expect(table.size).to.be.eql(9)
+          cb()
+        }
+      ], done)
+    })
+  })
+
+  it('closestPeer', (done) => {
+    createPeers(10, (err, peers) => {
+      expect(err).to.not.exist
+      waterfall([
+        (cb) => each(peers, (peer, cb) => {
+          table.add(peer, cb)
+        }, cb),
+        (cb) => {
+          const id = peers[2]
+          utils.bufferToKey(id.id, (err, key) => {
+            expect(err).to.not.exist
+            expect(
+              table.closestPeer(key)
+            ).to.be.eql([id])
+            cb()
+          })
+        }
+      ], done)
+    })
+  })
+
+  it('closestPeers', (done) => {
+    createPeers(18, (err, peers) => {
+      expect(err).to.not.exist
+      waterfall([
+        (cb) => each(peers, (peer, cb) => {
+          table.add(peer, cb)
+        }, cb),
+        (cb) => {
+          const id = peers[2]
+          utils.bufferToKey(id.id, (err, key) => {
+            expect(err).to.not.exist
+            expect(
+              table.closestPeers(key, 15)
+            ).to.have.length(15)
+            cb()
+          })
+        }
       ], done)
     })
   })

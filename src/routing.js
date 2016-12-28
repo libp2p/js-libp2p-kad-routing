@@ -62,6 +62,26 @@ class RoutingTable {
   // -- Public Interface
 
   /**
+   * Amount of currently stored peers.
+   *
+   * @type {number}
+   */
+  get size () {
+    return this.kb.count()
+  }
+
+  /**
+   * Retrieve the closest peers to the given key.
+   *
+   * @param {Buffer} key
+   * @param {number} count
+   * @returns {Array<PeerId>}
+   */
+  closestPeer (key, count) {
+    return this.closestPeers(key, 1)
+  }
+
+  /**
    * Retrieve the `count`-closest peers to the given key.
    *
    * @param {Buffer} key
