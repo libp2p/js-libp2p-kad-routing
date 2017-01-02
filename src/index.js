@@ -1,15 +1,17 @@
 'use strict'
 
 const debug = require('debug')
+const libp2pRecord = require('libp2p-record')
 
 const rpc = require('./rpc')
 const RoutingTable = require('./routing')
 const utils = require('./utils')
+const c = require('./constants')
 
 const log = debug('libp2p:dht')
 log.error = debug('libp2p:dht:error')
 
-const PROTOCOL_DHT = '/ipfs/kad/1.0.0'
+const Record = libp2pRecord.record
 
 class KadRouter {
   /**
@@ -53,7 +55,7 @@ class KadRouter {
     this.routingTable = new RoutingTable(this.self, this.kBucketSize)
 
     this._handleStream = this._handleStream.bind(this)
-    this.swarm.handle(PROTOCOL_DHT, (protocol, conn) => {
+    this.swarm.handle(c.PROTOCOL_DHT, (protocol, conn) => {
       rpc.handle(this, protocol, conn)
     })
   }
@@ -103,6 +105,57 @@ class KadRouter {
       })
 
       callback(null, filtered)
+    })
+  }
+
+  /**
+   * Try to fetch a given record by from the local datastore.
+   * Returns the record iff it is still valid, meaning
+   * - it was either authored by this node, or
+   * - it was receceived less than `MAX_RECORD_AGE` ago.
+   *
+   * @param {string} key
+   * @param {function(Error, Record)} callback
+   * @returns {undefined}
+   */
+  _checkLocalDatastore (key, callback) {
+    // 1. convert key to datastore key (done inside datastore)
+    // 2. fetch value from ds
+    this.datastore.get(key, (err, rawRecord) => {
+      if (err) {
+        // TODO: check message
+        if (err.message === 'not found') {
+          // 3. if: not found return
+          return callback()
+        } else {
+          return callback(err)
+        }
+      }
+
+      // 4. create record from the returned bytes
+      let record
+      try {
+        record = Record.decode(rawRecord)
+      } catch (err) {
+        return callback(err)
+      }
+
+      // 5. check validity
+
+      // 5. if: we are the author, all good
+      if (record.author.id.equals(this.self)) {
+        return callback(null, record)
+      }
+
+      //    else: compare recvtime with maxrecordage
+      if (record.recvtime == null ||
+          new Date().getTime() - record.recvtime > c.MAX_RECORD_AGE) {
+        // 6. if: record is bad delete it and return
+        return this.datastore.delete(key, callback)
+      }
+
+      //    else: return good record
+      callback(null, record)
     })
   }
 
