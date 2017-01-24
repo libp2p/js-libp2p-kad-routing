@@ -30,7 +30,7 @@
     "ipfs-logger": "^0.1.0",
     "js-priority-queue": "^0.1.2",
     "k-bucket": "^3.2.1",
-    "libp2p-swarm": "^0.26.8",
+    "libp2p-swarm": "^0.26.11",
     "protocol-buffers": "^3.2.1",
     "pull-length-prefixed": "^1.2.0",
     "pull-stream": "^3.5.0"
