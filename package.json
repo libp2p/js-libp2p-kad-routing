@@ -38,7 +38,7 @@
   "devDependencies": {
     "abstract-peer-routing": "^0.1.0",
     "code": "^4.0.0",
-    "lab": "^12.0.0",
+    "lab": "^12.1.0",
     "libp2p-spdy": "^0.10.0",
     "libp2p-tcp": "^0.9.1",
     "multiaddr": "^2.2.0",
