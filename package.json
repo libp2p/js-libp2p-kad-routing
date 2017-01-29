@@ -25,7 +25,7 @@
   },
   "homepage": "https://github.com/diasdavid/node-libp2p-kad-routing",
   "dependencies": {
-    "async": "^2.1.2",
+    "async": "^2.1.4",
     "buffer-xor": "^2.0.1",
     "ipfs-logger": "^0.1.0",
     "js-priority-queue": "^0.1.2",
