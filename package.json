@@ -45,7 +45,7 @@
     "peer-id": "^0.8.1",
     "peer-info": "^0.8.2",
     "pre-commit": "^1.2.2",
-    "standard": "^8.4.0",
+    "standard": "^8.6.0",
     "tape": "^4.2.0"
   }
 }
