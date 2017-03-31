@@ -43,7 +43,7 @@
     "libp2p-tcp": "^0.9.1",
     "multiaddr": "^2.2.0",
     "peer-id": "^0.8.1",
-    "peer-info": "^0.8.2",
+    "peer-info": "^0.9.1",
     "pre-commit": "^1.2.2",
     "standard": "^8.4.0",
     "tape": "^4.2.0"
