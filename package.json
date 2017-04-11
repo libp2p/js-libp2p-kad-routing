@@ -32,7 +32,7 @@
     "k-bucket": "^3.2.1",
     "libp2p-swarm": "^0.26.14",
     "protocol-buffers": "^3.2.1",
-    "pull-length-prefixed": "^1.2.0",
+    "pull-length-prefixed": "^1.2.1",
     "pull-stream": "^3.5.0"
   },
   "devDependencies": {
